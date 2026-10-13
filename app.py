@@ -37,16 +37,18 @@ def main() -> None:
     tab_ask, tab_results = st.tabs(["Ask", "Benchmark results"])
     with tab_results:
         p = ROOT / "results" / "RESULTS.md"
-        st.markdown(p.read_text() if p.exists() else "Run the experiments to produce results.")
+        st.markdown(p.read_text(encoding="utf-8") if p.exists() else "Run the experiments to produce results.")
         for f in ("recall_at_k.png",):
             if (ROOT / "figures" / f).exists():
                 st.image(str(ROOT / "figures" / f))
 
     st.sidebar.header("Retrieval")
-    strat = st.sidebar.selectbox("Chunking", list(chunking.STRATEGIES), index=2)
-    method = st.sidebar.selectbox("Retriever", ["hybrid", "bm25", "dense"])
-    rr = st.sidebar.selectbox("Reranker", list(RERANKERS), index=1)
-    sc = st.sidebar.selectbox("Scope", SCOPES, index=1, help="Only search the filings of the company (and year) named in the question.")
+    # defaults = the configuration chosen on the dev split (structure chunks, company+year scope, dense, no reranker)
+    strat = st.sidebar.selectbox("Chunking", list(chunking.STRATEGIES), index=list(chunking.STRATEGIES).index("structure"))
+    method = st.sidebar.selectbox("Retriever", ["dense", "hybrid", "bm25"])
+    rr = st.sidebar.selectbox("Reranker", list(RERANKERS), index=0)
+    sc = st.sidebar.selectbox("Scope", SCOPES, index=list(SCOPES).index("company+year"),
+                              help="Only search the filings of the company (and year) named in the question.")
     k = st.sidebar.slider("Excerpts given to the model", 3, 10, 5)
 
     with tab_ask:

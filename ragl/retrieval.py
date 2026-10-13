@@ -33,8 +33,12 @@ def tokenize(text: str) -> list[str]:
 def _providers() -> list[str] | None:
     """ONNX_PROVIDERS=CUDAExecutionProvider (with `pip install fastembed-gpu`) runs embeddings and rerankers on a
     GPU; unset = CPU. The models and results are the same either way."""
-    p = os.getenv("ONNX_PROVIDERS", "").strip()
-    return [x.strip() for x in p.split(",") if x.strip()] or None
+    p = [x.strip() for x in os.getenv("ONNX_PROVIDERS", "").split(",") if x.strip()]
+    if "CUDAExecutionProvider" in p:
+        import onnxruntime
+        if hasattr(onnxruntime, "preload_dlls"):   # loads the pip-installed CUDA/cuDNN DLLs (else: cudnn64_9.dll not found)
+            onnxruntime.preload_dlls()
+    return p or None
 
 
 @lru_cache(maxsize=1)

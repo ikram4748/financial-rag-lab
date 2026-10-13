@@ -40,7 +40,7 @@ def main() -> None:
     qpath = RAW / "financebench.jsonl"
     if not qpath.exists():
         fetch(QUESTIONS_URL, qpath)
-    docs = sorted({json.loads(line)["doc_name"] for line in qpath.read_text().splitlines() if line.strip()})
+    docs = sorted({json.loads(line)["doc_name"] for line in qpath.read_text(encoding="utf-8").splitlines() if line.strip()})
     for i, d in enumerate(docs, 1):
         dest = RAW / "pdfs" / f"{d}.pdf"
         if not dest.exists():

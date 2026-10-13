@@ -54,11 +54,11 @@ def best_config() -> dict:
 
 
 def _jsonl(path: Path) -> dict[str, dict]:
-    return {r["qid"]: r for r in map(json.loads, path.read_text().splitlines())} if path.exists() else {}
+    return {r["qid"]: r for r in map(json.loads, path.read_text(encoding="utf-8").splitlines())} if path.exists() else {}
 
 
 def _append(path: Path, row: dict, lock: threading.Lock) -> None:
-    with lock, path.open("a") as f:
+    with lock, path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 

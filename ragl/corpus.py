@@ -41,7 +41,7 @@ class Page:
 
 def load_questions() -> list[Question]:
     out = []
-    for line in (RAW / "financebench.jsonl").read_text().splitlines():
+    for line in (RAW / "financebench.jsonl").read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
         r = json.loads(line)
@@ -77,7 +77,7 @@ def load_pages() -> list[Page]:
     """Text of every page of every filing (cached as JSONL after the first parse)."""
     cache = PROCESSED / "pages.jsonl"
     if cache.exists():
-        return [Page(**json.loads(line)) for line in cache.read_text().splitlines()]
+        return [Page(**json.loads(line)) for line in cache.read_text(encoding="utf-8").splitlines()]
     import pymupdf
     PROCESSED.mkdir(parents=True, exist_ok=True)
     pages = []
@@ -85,7 +85,7 @@ def load_pages() -> list[Page]:
         with pymupdf.open(pdf) as d:
             for i, p in enumerate(d):
                 pages.append(Page(pdf.stem, i, _clean(p.get_text("text"))))
-    cache.write_text("\n".join(json.dumps(p.__dict__) for p in pages))
+    cache.write_text("\n".join(json.dumps(p.__dict__) for p in pages), encoding="utf-8")
     return pages
 
 

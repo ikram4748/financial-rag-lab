@@ -61,19 +61,27 @@ def main() -> None:
     for _, r in test.sort_values("recall@5", ascending=False).iterrows():
         mark = "**" if r.config == best.config else ""
         L.append(f"| {mark}{r.chunking}{mark} | {r.scope} | {r.retriever} | {r['recall@1']:.0%} | {mark}{r['recall@5']:.0%}{mark} | "
-                 f"{r['recall@10']:.0%} | {r.mrr:.2f} | {r.ms:.0f} |")
+                 f"{r['recall@10']:.0%} | {r.mrr:.2f} | {'-' if pd.isna(r.ms) else f'{r.ms:.0f}'} |")
+    if test.retriever.str.endswith("+hyde").any():
+        L += ["", "HyDE adds one LLM call per query (to write the hypothetical passage), so its latency is not comparable."]
 
     # marginal effect of each choice: average recall@5 over all other settings
     L += ["", "## 2. What each choice is worth (test recall@5, averaged over the other settings)", ""]
+    grid = test[~test.retriever.str.endswith("+hyde")]          # HyDE was only run on one configuration
     for dim in ("chunking", "scope", "retriever"):
-        g = test.groupby(dim)["recall@5"].mean().sort_values(ascending=False)
+        g = grid.groupby(dim)["recall@5"].mean().sort_values(ascending=False)
         L.append(f"- **{dim}:** " + " · ".join(f"{k} {v:.0%}" for k, v in g.items()))
+    for _, h in test[test.retriever.str.endswith("+hyde")].iterrows():
+        base = test[test.config == h.config.removesuffix("+hyde")]
+        if len(base):
+            L.append(f"- **HyDE** (same configuration, `{base.iloc[0].config}`): recall@5 {base.iloc[0]['recall@5']:.0%} → "
+                     f"{h['recall@5']:.0%}")
     ins = test.groupby("scope")["in_scope"].mean()
     L += ["", "Scope filters remove filings before searching. The share of test questions whose evidence filing survives "
           "the filter: " + ", ".join(f"{k} {v:.0%}" for k, v in ins.items()) + "."]
 
     # recall@k figure for a few telling configurations
-    show = [c for c in [f"fixed|all|dense", "fixed|all|bm25", "structure|all|hybrid", best.config,
+    show = [c for c in [f"fixed|all|dense", "fixed|all|bm25", "structure|all|hybrid", best.config.removesuffix("+hyde"),
                         best.config + "+hyde"] if c in set(ranks.config)]
     fig, ax = plt.subplots(figsize=(6, 3.4))
     for c in dict.fromkeys(show):
@@ -94,7 +102,7 @@ def main() -> None:
     for v in VARIANT_LABEL:
         p = gen_dir / f"{v}.jsonl"
         if p.exists():
-            rows += [json.loads(line) for line in p.read_text().splitlines()]
+            rows += [json.loads(line) for line in p.read_text(encoding="utf-8").splitlines()]
     if rows:
         g = pd.DataFrame(rows)
         L += ["", "## 3. End-to-end answers (test split)", "",
@@ -123,13 +131,13 @@ def main() -> None:
                 L.append(f"| {t} | {r.get('best', float('nan')):.0%} | {r.get('oracle', float('nan')):.0%} |")
     jc = gen_dir / "judge_check.jsonl"
     if jc.exists():
-        j = pd.DataFrame([json.loads(line) for line in jc.read_text().splitlines()])
+        j = pd.DataFrame([json.loads(line) for line in jc.read_text(encoding="utf-8").splitlines()])
         c = j.dropna(subset=["accepts_corrupted"])
         L += ["", "## 4. Can the judge be trusted?", "",
               f"The judge accepted **{j.accepts_gold.mean():.0%}** of the gold answers themselves ({len(j)}), and rejected "
               f"**{(~c.accepts_corrupted.astype(bool)).mean():.0%}** of gold answers whose first number was changed by 15% "
               f"({len(c)})."]
-    (RESULTS / "RESULTS.md").write_text("\n".join(L) + "\n")
+    (RESULTS / "RESULTS.md").write_text("\n".join(L) + "\n", encoding="utf-8")
     print("\n".join(L))
 
 
